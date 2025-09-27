@@ -7,6 +7,7 @@ type Profile = { id:string; full_name?:string|null; avatar_url?:string|null }
 
 export default function CommentList({ postId }:{ postId: string }) {
   const [items, setItems] = useState<(Comment & { authorProfile?: Profile })[]>([])
+
   useEffect(()=>{ load() }, [postId])
 
   async function load(){
@@ -14,9 +15,12 @@ export default function CommentList({ postId }:{ postId: string }) {
       .select('id,content,created_at,author')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
+
     const authorIds = Array.from(new Set((comments ?? []).map(c=>c.author)))
     const { data: authors } = await supabase.from('profiles')
-      .select('id,full_name,avatar_url').in('id', authorIds)
+      .select('id,full_name,avatar_url')
+      .in('id', authorIds)
+
     const map = new Map((authors ?? []).map(a=>[a.id, a]))
     setItems((comments ?? []).map(c => ({ ...c, authorProfile: map.get(c.author) })))
   }
