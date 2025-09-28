@@ -1,18 +1,21 @@
+// src/app/feed/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { supabase } from '../../lib/supabaseBrowser'
 import ReactionBar from '../../components/ReactionBar'
 import CommentComposer from '../../components/CommentComposer'
 import CommentList from '../../components/CommentList'
 import { uploadPostImage } from '../../lib/images'
 
-
 // Data shapes
 type Profile = { id: string; full_name?: string | null; avatar_url?: string | null }
 type Post = { id: string; author: string; content: string; image_url?: string | null; created_at: string }
 type HydratedPost = Post & { authorProfile?: Profile }
+type ReactionCountRow = { post_id: string }
+type CommentCountRow = { post_id: string }
 
 export default function Feed() {
   const [userId, setUserId] = useState<string>('')
@@ -91,10 +94,10 @@ export default function Feed() {
 
     const map: Record<string, { reactions: number; comments: number }> = {}
     ids.forEach((id) => (map[id] = { reactions: 0, comments: 0 }))
-    ;(r ?? []).forEach((x: any) => {
+    ;(r ?? []).forEach((x: ReactionCountRow) => {
       if (map[x.post_id]) map[x.post_id].reactions++
     })
-    ;(c ?? []).forEach((x: any) => {
+    ;(c ?? []).forEach((x: CommentCountRow) => {
       if (map[x.post_id]) map[x.post_id].comments++
     })
     setCounts(map)
@@ -145,7 +148,13 @@ export default function Feed() {
         }}
       >
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-          <img src={me?.avatar_url ?? '/avatar.png'} style={{ width: 40, height: 40, borderRadius: 999 }} />
+          <Image
+            src={me?.avatar_url ?? '/avatar.png'}
+            alt="Your avatar"
+            width={40}
+            height={40}
+            style={{ borderRadius: 999 }}
+          />
           <div style={{ fontWeight: 500 }}>{me?.full_name ?? 'You'}</div>
         </div>
 
@@ -196,9 +205,12 @@ export default function Feed() {
             style={{ background: '#fff', border: '1px solid #E2E0DA', borderRadius: 16, padding: 12 }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-              <img
+              <Image
                 src={p.authorProfile?.avatar_url ?? '/avatar.png'}
-                style={{ width: 32, height: 32, borderRadius: 999 }}
+                alt={`${p.authorProfile?.full_name ?? 'Friend'} avatar`}
+                width={32}
+                height={32}
+                style={{ borderRadius: 999 }}
               />
               <div>
                 <div style={{ fontWeight: 500 }}>{p.authorProfile?.full_name ?? 'Friend'}</div>
@@ -211,9 +223,18 @@ export default function Feed() {
             <div style={{ whiteSpace: 'pre-wrap', fontSize: 17, lineHeight: 1.5, marginBottom: 8 }}>{p.content}</div>
 
             {p.image_url && (
-              <img
+              <Image
                 src={p.image_url}
-                style={{ width: '100%', borderRadius: 12, border: '1px solid #E2E0DA', marginBottom: 8 }}
+                alt="Post image"
+                width={1200}
+                height={800}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  borderRadius: 12,
+                  border: '1px solid #E2E0DA',
+                  marginBottom: 8,
+                }}
               />
             )}
 
