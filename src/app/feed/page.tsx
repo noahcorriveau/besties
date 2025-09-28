@@ -10,7 +10,7 @@ import CommentComposer from '../../components/CommentComposer'
 import CommentList from '../../components/CommentList'
 import { uploadPostImage } from '../../lib/images'
 
-// Data shapes
+// Types
 type Profile = { id: string; full_name?: string | null; avatar_url?: string | null }
 type Post = { id: string; author: string; content: string; image_url?: string | null; created_at: string }
 type HydratedPost = Post & { authorProfile?: Profile }
@@ -35,7 +35,7 @@ export default function Feed() {
       }
       setUserId(data.user.id)
 
-      // If we arrived from the magic link with ?token=..., mark invite as used once
+      // mark invite as used if we came in with ?token=...
       const sp = new URLSearchParams(window.location.search)
       const token = sp.get('token')
       if (token) {
@@ -49,7 +49,7 @@ export default function Feed() {
         window.history.replaceState({}, '', url.toString())
       }
 
-      // Ensure profile exists; if not, go to onboarding
+      // ensure profile exists
       const { data: profile } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url')
@@ -68,38 +68,48 @@ export default function Feed() {
   }, [])
 
   async function loadPosts() {
-    const { data: posts } = await supabase
+    const postsRes = await supabase
       .from('posts')
       .select('id, author, content, image_url, created_at')
       .order('created_at', { ascending: false })
       .limit(30)
 
-    const authorIds = Array.from(new Set((posts ?? []).map((p) => p.author)))
-    const { data: authors } = await supabase
+    const rows = postsRes.data ?? []
+    const authorIds = Array.from(new Set(rows.map((p) => p.author)))
+
+    const authorsRes = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url')
       .in('id', authorIds)
 
-    const map = new Map((authors ?? []).map((a) => [a.id, a]))
-    const hydrated: HydratedPost[] = (posts ?? []).map((p) => ({ ...p, authorProfile: map.get(p.author) }))
+    const map = new Map((authorsRes.data ?? []).map((a) => [a.id, a as Profile]))
+    const hydrated: HydratedPost[] = rows.map((p) => ({ ...p, authorProfile: map.get(p.author) }))
     setPosts(hydrated)
     await loadCounts(hydrated.map((p) => p.id))
   }
 
-  // Pull simple counts (client-side aggregate)
+  // Client-side counts
   async function loadCounts(ids: string[]) {
     if (ids.length === 0) return
-    const { data: r } = await supabase.from('reactions').select('post_id').in('post_id', ids)
-    const { data: c } = await supabase.from('comments').select('post_id').in('post_id', ids)
+
+    const r = (
+      await supabase.from('reactions').select('post_id').in('post_id', ids)
+    ).data as ReactionCountRow[] | null
+
+    const c = (
+      await supabase.from('comments').select('post_id').in('post_id', ids)
+    ).data as CommentCountRow[] | null
 
     const map: Record<string, { reactions: number; comments: number }> = {}
     ids.forEach((id) => (map[id] = { reactions: 0, comments: 0 }))
-    ;(r ?? []).forEach((x: ReactionCountRow) => {
-      if (map[x.post_id]) map[x.post_id].reactions++
-    })
-    ;(c ?? []).forEach((x: CommentCountRow) => {
-      if (map[x.post_id]) map[x.post_id].comments++
-    })
+
+    for (const row of r ?? []) {
+      if (map[row.post_id]) map[row.post_id].reactions++
+    }
+    for (const row of c ?? []) {
+      if (map[row.post_id]) map[row.post_id].comments++
+    }
+
     setCounts(map)
   }
 
@@ -200,10 +210,7 @@ export default function Feed() {
       {/* Feed */}
       <div style={{ display: 'grid', gap: 12 }}>
         {posts.map((p) => (
-          <div
-            key={p.id}
-            style={{ background: '#fff', border: '1px solid #E2E0DA', borderRadius: 16, padding: 12 }}
-          >
+          <div key={p.id} style={{ background: '#fff', border: '1px solid #E2E0DA', borderRadius: 16, padding: 12 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
               <Image
                 src={p.authorProfile?.avatar_url ?? '/avatar.png'}
@@ -214,9 +221,7 @@ export default function Feed() {
               />
               <div>
                 <div style={{ fontWeight: 500 }}>{p.authorProfile?.full_name ?? 'Friend'}</div>
-                <div style={{ fontSize: 12, color: '#7A756A' }}>
-                  {new Date(p.created_at).toLocaleString()}
-                </div>
+                <div style={{ fontSize: 12, color: '#7A756A' }}>{new Date(p.created_at).toLocaleString()}</div>
               </div>
             </div>
 
