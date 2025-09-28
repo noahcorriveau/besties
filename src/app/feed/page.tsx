@@ -1,13 +1,13 @@
-// src/app/feed/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabaseBrowser'
-import ReactionBar from '@/components/ReactionBar'
-import CommentComposer from '@/components/CommentComposer'
-import CommentList from '@/components/CommentList'
-import { uploadPostImage } from '@/lib/images'
+import { supabase } from '../../lib/supabaseBrowser'
+import ReactionBar from '../../components/ReactionBar'
+import CommentComposer from '../../components/CommentComposer'
+import CommentList from '../../components/CommentList'
+import { uploadPostImage } from '../../lib/images'
+
 
 // Data shapes
 type Profile = { id: string; full_name?: string | null; avatar_url?: string | null }
