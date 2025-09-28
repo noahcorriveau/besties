@@ -88,25 +88,25 @@ export default function Feed() {
     await loadCounts(hydrated.map((p) => p.id))
   }
 
-  // Client-side counts
+  // Client-side counts (no any)
   async function loadCounts(ids: string[]) {
     if (ids.length === 0) return
 
-    const r = (
-      await supabase.from('reactions').select('post_id').in('post_id', ids)
-    ).data as ReactionCountRow[] | null
+    const rData = await supabase.from('reactions').select('post_id').in('post_id', ids)
+    const cData = await supabase.from('comments').select('post_id').in('post_id', ids)
 
-    const c = (
-      await supabase.from('comments').select('post_id').in('post_id', ids)
-    ).data as CommentCountRow[] | null
+    const reactions = (rData.data ?? []) as ReactionCountRow[]
+    const comments = (cData.data ?? []) as CommentCountRow[]
 
     const map: Record<string, { reactions: number; comments: number }> = {}
-    ids.forEach((id) => (map[id] = { reactions: 0, comments: 0 }))
+    for (const id of ids) {
+      map[id] = { reactions: 0, comments: 0 }
+    }
 
-    for (const row of r ?? []) {
+    for (const row of reactions) {
       if (map[row.post_id]) map[row.post_id].reactions++
     }
-    for (const row of c ?? []) {
+    for (const row of comments) {
       if (map[row.post_id]) map[row.post_id].comments++
     }
 
