@@ -1,54 +1,52 @@
 'use client'
-import { useState } from 'react'
-import { supabase } from '@/lib/supabaseBrowser'
+import { useTransition } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import type { Reaction } from '@/types'
 
-const choices = [
-  { key: 'like',  label: '👍' },
-  { key: 'lol',   label: '😄' },
+const REACTIONS: { key: Reaction; label: string }[] = [
+  { key: 'like', label: '👍' },
   { key: 'heart', label: '❤️' },
-  { key: 'wow',   label: '😮' },
-  { key: 'sad',   label: '😢' },
-] as const
-type ChoiceKey = typeof choices[number]['key']
+  { key: 'lol', label: '😂' },
+  { key: 'wow', label: '😮' },
+  { key: 'sad', label: '😢' },
+]
 
-export default function ReactionBar({ postId, meId, onChanged }:{
-  postId: string; meId: string; onChanged?: () => void
+export default function ReactionBar({
+  counts,
+  mine,
+  onToggle,
+}: {
+  counts: Partial<Record<Reaction, number>>
+  mine: Reaction[]
+  onToggle: (r: Reaction, present: boolean) => Promise<void>
 }) {
-  const [busy, setBusy] = useState(false)
-
-  async function react(reaction: ChoiceKey) {
-    if (busy) return
-    setBusy(true)
-    const { data: existing } = await supabase
-      .from('reactions')
-      .select('*')
-      .eq('post_id', postId)
-      .eq('user_id', meId)
-      .eq('reaction', reaction)
-      .maybeSingle()
-
-    if (existing) {
-      await supabase.from('reactions')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', meId)
-        .eq('reaction', reaction)
-    } else {
-      await supabase.from('reactions')
-        .insert({ post_id: postId, user_id: meId, reaction })
-    }
-    setBusy(false)
-    onChanged?.()
-  }
-
+  const [isPending, start] = useTransition()
   return (
-    <div style={{display:'flex', gap:8}}>
-      {choices.map(c => (
-        <button key={c.key} onClick={()=>react(c.key as ChoiceKey)}
-          style={{border:'1px solid #E2E0DA', borderRadius:10, padding:'6px 10px', background:'#fff'}}>
-          {c.label}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-2 pt-1">
+      {REACTIONS.map(({ key, label }) => {
+        const present = mine.includes(key)
+        const count = counts[key] ?? 0
+        return (
+          <Button
+            key={key}
+            variant={present ? 'default' : 'outline'}
+            size="sm"
+            className={`rounded-xl ${present ? 'bg-primary text-white' : 'border-cardBorder'}`}
+            disabled={isPending}
+            onClick={() => start(() => onToggle(key, present))}
+            aria-pressed={present}
+            aria-label={`${label} ${count > 0 ? count : ''}`}
+          >
+            <span className="mr-1">{label}</span>
+            {count > 0 && (
+              <Badge variant="secondary" className="ml-1 rounded-full min-w-[1.25rem] justify-center">
+                {count}
+              </Badge>
+            )}
+          </Button>
+        )
+      })}
     </div>
   )
 }
