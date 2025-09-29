@@ -1,50 +1,43 @@
 'use client'
-import { useTransition } from 'react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import type { Reaction } from '@/types'
+import React from 'react'
+import type { Reaction } from '@/lib/reactions'
 
-const REACTIONS: { key: Reaction; label: string }[] = [
-  { key: 'like', label: '👍' },
-  { key: 'heart', label: '❤️' },
-  { key: 'lol', label: '😂' },
-  { key: 'wow', label: '😮' },
-  { key: 'sad', label: '😢' },
-]
-
-export default function ReactionBar({
-  counts,
-  mine,
-  onToggle,
-}: {
+type ReactionBarProps = {
+  postId: string
+  meId: string
   counts: Partial<Record<Reaction, number>>
   mine: Reaction[]
   onToggle: (r: Reaction, present: boolean) => Promise<void>
-}) {
-  const [isPending, start] = useTransition()
+  onChanged: () => Promise<void>
+}
+
+export default function ReactionBar({
+  postId,
+  meId,
+  counts,
+  mine,
+  onToggle,
+  onChanged,
+}: ReactionBarProps) {
+  // example render — adjust icons as you like
+  const reactions: Reaction[] = ['like', 'lol', 'wow', 'sad', 'heart']
+
   return (
-    <div className="flex flex-wrap gap-2 pt-1">
-      {REACTIONS.map(({ key, label }) => {
-        const present = mine.includes(key)
-        const count = counts[key] ?? 0
+    <div className="flex gap-2">
+      {reactions.map((r) => {
+        const count = counts[r] || 0
+        const active = mine.includes(r)
         return (
-          <Button
-            key={key}
-            variant={present ? 'default' : 'outline'}
-            size="sm"
-            className={`rounded-xl ${present ? 'bg-primary text-white' : 'border-cardBorder'}`}
-            disabled={isPending}
-            onClick={() => start(() => onToggle(key, present))}
-            aria-pressed={present}
-            aria-label={`${label} ${count > 0 ? count : ''}`}
+          <button
+            key={r}
+            onClick={async () => {
+              await onToggle(r, active)
+              await onChanged()
+            }}
+            className={`rounded-full px-2 py-1 ${active ? 'bg-primary text-white' : 'bg-gray-200'}`}
           >
-            <span className="mr-1">{label}</span>
-            {count > 0 && (
-              <Badge variant="secondary" className="ml-1 rounded-full min-w-[1.25rem] justify-center">
-                {count}
-              </Badge>
-            )}
-          </Button>
+            {r} {count > 0 && count}
+          </button>
         )
       })}
     </div>
